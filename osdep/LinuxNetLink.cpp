@@ -24,6 +24,9 @@
 #include <unistd.h>
 #include <linux/if_tun.h>
 
+#include <ndm/feedback.h>
+#define NESEP_						NDM_FEEDBACK_ENV_SEPARATOR
+
 #ifndef IFNAMSIZ
 #define IFNAMSIZ 16
 #endif
@@ -688,8 +691,46 @@ void LinuxNetLink::_requestInterfaceList()
 	close(fd);
 }
 
-void LinuxNetLink::addRoute(const InetAddress &target, const InetAddress &via, const InetAddress &src, const char *ifaceName)
+void LinuxNetLink::addRoute(const InetAddress &target, const InetAddress &via, const InetAddress &src, const char *ifaceName,const char *id, const char *feedback)
 {
+	{
+		const char *args[] =
+		{
+			feedback,
+			"add-route",
+			NULL
+		};
+		char bufTarget[64];
+		char bufVia[64];
+		char bufSrc[64];
+		const char *addrTarget = target.toIpString(bufTarget);
+		const char *addrVia = via.toIpString(bufVia);
+		const char *addrSrc = src.toIpString(bufSrc);
+
+		if( !ndm_feedback(NDM_FEEDBACK_TIMEOUT_MSEC,
+				args,
+				"%s=%s" NESEP_
+				"%s=%s" NESEP_
+				"%s=%s" NESEP_
+				"%s=%u" NESEP_
+				"%s=%s" NESEP_
+				"%s=%u" NESEP_
+				"%s=%s" NESEP_
+				"%s=%u", 
+				"id", id,
+				"system_name", ifaceName,
+				"target_address", addrTarget,
+				"target_length", target.port(),
+				"via_address", addrVia,
+				"via_length", via.port(),
+				"src_address", addrSrc,
+				"src_length", src.port()) ) {
+			fprintf(stderr, "unable to send feedback\n");
+			return;
+		}
+	}
+
+#if 0
 	if (!target) return;
 
 	int fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
@@ -819,10 +860,49 @@ void LinuxNetLink::addRoute(const InetAddress &target, const InetAddress &via, c
 	_doRecv(fd);
 
 	close(fd);
+#endif
 }
 
-void LinuxNetLink::delRoute(const InetAddress &target, const InetAddress &via, const InetAddress &src, const char *ifaceName)
+void LinuxNetLink::delRoute(const InetAddress &target, const InetAddress &via, const InetAddress &src, const char *ifaceName, const char *id, const char *feedback)
 {
+	{
+		const char *args[] =
+		{
+			feedback,
+			"del-route",
+			NULL
+		};
+		char bufTarget[64];
+		char bufVia[64];
+		char bufSrc[64];
+		const char *addrTarget = target.toIpString(bufTarget);
+		const char *addrVia = via.toIpString(bufVia);
+		const char *addrSrc = src.toIpString(bufSrc);
+
+		if( !ndm_feedback(NDM_FEEDBACK_TIMEOUT_MSEC,
+				args,
+				"%s=%s" NESEP_
+				"%s=%s" NESEP_
+				"%s=%s" NESEP_
+				"%s=%u" NESEP_
+				"%s=%s" NESEP_
+				"%s=%u" NESEP_
+				"%s=%s" NESEP_
+				"%s=%u", 
+				"id", id,
+				"system_name", ifaceName,
+				"target_address", addrTarget,
+				"target_length", target.port(),
+				"via_address", addrVia,
+				"via_length", via.port(),
+				"src_address", addrSrc,
+				"src_length", src.port()) ) {
+			fprintf(stderr, "unable to send feedback\n");
+			return;
+		}
+	}
+
+#if 0
 	if (!target) return;
 
 	int fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
@@ -934,6 +1014,7 @@ void LinuxNetLink::delRoute(const InetAddress &target, const InetAddress &via, c
 	_doRecv(fd);
 
 	close(fd);
+#endif
 }
 
 void LinuxNetLink::addAddress(const InetAddress &addr, const char *iface)
@@ -1168,6 +1249,9 @@ void LinuxNetLink::removeAddress(const InetAddress &addr, const char *iface)
 
 bool LinuxNetLink::routeIsSet(const InetAddress &target, const InetAddress &via, const InetAddress &src, const char *ifname)
 {
+	return false;
+
+#if 0
 	Mutex::Lock rl(_routes_m);
 	const std::set<LinuxNetLink::Route> &rs = _routes[target];
 	for(std::set<LinuxNetLink::Route>::const_iterator ri(rs.begin());ri!=rs.end();++ri) {
@@ -1183,6 +1267,7 @@ bool LinuxNetLink::routeIsSet(const InetAddress &target, const InetAddress &via,
 		}
 	}
 	return false;
+#endif
 }
 
 int LinuxNetLink::_indexForInterface(const char *iface)

@@ -17,6 +17,8 @@
 
 #include "../node/Constants.hpp"
 
+#include <ndm/sys.h>
+
 #ifdef __LINUX__
 
 #include "../node/Utils.hpp"
@@ -55,6 +57,8 @@
 #include <ctype.h>
 #include <sys/utsname.h>
 
+#include <ndm/feedback.h>
+#define NESEP_						NDM_FEEDBACK_ENV_SEPARATOR
 
 #ifndef IFNAMSIZ
 #define IFNAMSIZ 16
@@ -116,6 +120,8 @@ LinuxEthernetTap::LinuxEthernetTap(
 	unsigned int metric,
 	uint64_t nwid,
 	const char *friendlyName,
+	const char *feedback,
+	const char *ndmId,
 	void (*handler)(void *,void *,uint64_t,const MAC &,const MAC &,unsigned int,unsigned int,const void *,unsigned int),
 	void *arg) :
 	_handler(handler),
@@ -123,6 +129,8 @@ LinuxEthernetTap::LinuxEthernetTap(
 	_nwid(nwid),
 	_mac(mac),
 	_homePath(homePath),
+	_feedback(feedback),
+	_ndmId(ndmId),
 	_mtu(mtu),
 	_fd(0),
 	_enabled(true),
@@ -294,6 +302,27 @@ LinuxEthernetTap::LinuxEthernetTap(
 		if (!_run)
 			return;
 
+#if 0
+		{
+			const char *args[] =
+			{
+				_feedback.c_str(),
+				"tap-up",
+				NULL
+			};
+
+			if( !ndm_feedback(NDM_FEEDBACK_TIMEOUT_MSEC,
+					args,
+					"%s=%s" NESEP_
+					"%s=%s",
+					"id", _ndmId.c_str(),
+					"system_name", _dev.c_str()) ) {
+				fprintf(stderr, "unable to send feedback\n");
+				return;
+			}
+		}
+#endif
+
 		FD_ZERO(&readfds);
 		FD_ZERO(&nullfds);
 		nfds = (int)std::max(_shutdownSignalPipe[0],_fd) + 1;
@@ -347,6 +376,27 @@ LinuxEthernetTap::~LinuxEthernetTap()
 	::close(_fd);
 	::close(_shutdownSignalPipe[0]);
 	::close(_shutdownSignalPipe[1]);
+
+#if 0
+	{
+		const char *args[] =
+		{
+			_feedback.c_str(),
+			"tap-down",
+			NULL
+		};
+
+		if( !ndm_feedback(NDM_FEEDBACK_TIMEOUT_MSEC,
+				args,
+				"%s=%s" NESEP_
+				"%s=%s",
+				"id", _ndmId.c_str(),
+				"system_name", _dev.c_str()) ) {
+			fprintf(stderr, "unable to send feedback\n");
+			return;
+		}
+	}
+#endif
 }
 
 void LinuxEthernetTap::setEnabled(bool en)
@@ -359,9 +409,36 @@ bool LinuxEthernetTap::enabled() const
 	return _enabled;
 }
 
-static bool ___removeIp(const std::string &_dev,const InetAddress &ip)
+static bool ___removeIp(const std::string &_dev,const InetAddress &ip,const char *id, const char *feedback)
 {
+	{
+		const char *args[] =
+		{
+			feedback,
+			"remove-ip",
+			NULL
+		};
+		char buf[64];
+		const char *addr = ip.toIpString(buf);
+
+		if( !ndm_feedback(NDM_FEEDBACK_TIMEOUT_MSEC,
+				args,
+				"%s=%s" NESEP_
+				"%s=%s" NESEP_
+				"%s=%s" NESEP_
+				"%s=%u", 
+				"id", id,
+				"system_name", _dev.c_str(),
+				"address", addr,
+				"address_length", ip.port()) ) {
+			fprintf(stderr, "unable to send feedback\n");
+			return false;
+		}
+	}
+
+#if 0
 	LinuxNetLink::getInstance().removeAddress(ip, _dev.c_str());
+#endif
 	return true;
 }
 
@@ -416,10 +493,37 @@ bool LinuxEthernetTap::addIp(const InetAddress &ip)
 	// Remove and reconfigure if address is the same but netmask is different
 	for(std::vector<InetAddress>::iterator i(allIps.begin());i!=allIps.end();++i) {
 		if (i->ipsEqual(ip))
-			___removeIp(_dev,*i);
+			___removeIp(_dev,*i,_ndmId.c_str(),_feedback.c_str());
 	}
 
+	{
+		const char *args[] =
+		{
+			_feedback.c_str(),
+			"add-ip",
+			NULL
+		};
+		char buf[64];
+		const char *addr = ip.toIpString(buf);
+
+		if( !ndm_feedback(NDM_FEEDBACK_TIMEOUT_MSEC,
+				args,
+				"%s=%s" NESEP_
+				"%s=%s" NESEP_
+				"%s=%s" NESEP_
+				"%s=%u", 
+				"id", _ndmId.c_str(),
+				"system_name", _dev.c_str(),
+				"address", addr,
+				"address_length", ip.port()) ) {
+			fprintf(stderr, "unable to send feedback\n");
+			return false;
+		}
+	}
+
+#if 0
 	LinuxNetLink::getInstance().addAddress(ip, _dev.c_str());
+#endif
 
 	return true;
 }
@@ -430,7 +534,7 @@ bool LinuxEthernetTap::removeIp(const InetAddress &ip)
 		return true;
 	std::vector<InetAddress> allIps(ips());
 	if (std::find(allIps.begin(),allIps.end(),ip) != allIps.end()) {
-		if (___removeIp(_dev,ip))
+		if (___removeIp(_dev,ip,_ndmId.c_str(),_feedback.c_str()))
 			return true;
 	}
 	return false;

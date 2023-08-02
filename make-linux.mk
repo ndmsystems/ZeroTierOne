@@ -25,8 +25,8 @@ TIMESTAMP=$(shell date +"%Y%m%d%H%M")
 # otherwise build into binary as done on Mac and Windows.
 ONE_OBJS+=osdep/PortMapper.o
 override DEFS+=-DZT_USE_MINIUPNPC
-MINIUPNPC_IS_NEW_ENOUGH=$(shell grep -sqr '.*define.*MINIUPNPC_VERSION.*"2..*"' /usr/include/miniupnpc/miniupnpc.h && echo 1)
-#MINIUPNPC_IS_NEW_ENOUGH=$(shell grep -sqr '.*define.*MINIUPNPC_VERSION.*"2.."' /usr/include/miniupnpc/miniupnpc.h && echo 1)
+MINIUPNPC_IS_NEW_ENOUGH=$(shell grep -sqr '.*define.*MINIUPNPC_VERSION.*"2..*"' $(STAGING_DIR)/usr/include/miniupnpc/miniupnpc.h && echo 1)
+#MINIUPNPC_IS_NEW_ENOUGH=$(shell grep -sqr '.*define.*MINIUPNPC_VERSION.*"2.."' $(STAGING_DIR)/usr/include/miniupnpc/miniupnpc.h && echo 1)
 ifeq ($(MINIUPNPC_IS_NEW_ENOUGH),1)
 	override DEFS+=-DZT_USE_SYSTEM_MINIUPNPC
 	LDLIBS+=-lminiupnpc
@@ -34,12 +34,14 @@ else
 	override DEFS+=-DMINIUPNP_STATICLIB -DMINIUPNPC_SET_SOCKET_TIMEOUT -DMINIUPNPC_GET_SRC_ADDR -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=600 -DOS_STRING="\"Linux\"" -DMINIUPNPC_VERSION_STRING="\"2.0\"" -DUPNP_VERSION_STRING="\"UPnP/1.1\"" -DENABLE_STRNATPMPERR
 	ONE_OBJS+=ext/miniupnpc/connecthostport.o ext/miniupnpc/igd_desc_parse.o ext/miniupnpc/minisoap.o ext/miniupnpc/minissdpc.o ext/miniupnpc/miniupnpc.o ext/miniupnpc/miniwget.o ext/miniupnpc/minixml.o ext/miniupnpc/portlistingparse.o ext/miniupnpc/receivedata.o ext/miniupnpc/upnpcommands.o ext/miniupnpc/upnpdev.o ext/miniupnpc/upnperrors.o ext/miniupnpc/upnpreplyparse.o
 endif
-ifeq ($(wildcard /usr/include/natpmp.h),)
+ifeq ($(wildcard $(STAGING_DIR)/usr/include/natpmp.h),)
 	ONE_OBJS+=ext/libnatpmp/natpmp.o ext/libnatpmp/getgateway.o
 else
 	LDLIBS+=-lnatpmp
 	override DEFS+=-DZT_USE_SYSTEM_NATPMP
 endif
+
+LDLIBS+=-lndm
 
 # Use bundled http-parser since distribution versions are NOT API-stable or compatible!
 # Trying to use dynamically linked libhttp-parser causes tons of compatibility problems.
@@ -70,7 +72,8 @@ else
 	override CFLAGS+=-Wall -Wno-deprecated -pthread $(INCLUDES) -DNDEBUG $(DEFS)
 	CXXFLAGS?=-O3 -fstack-protector
 	override CXXFLAGS+=-Wall -Wno-deprecated -std=c++17 -pthread $(INCLUDES) -DNDEBUG $(DEFS)
-	LDFLAGS=-pie -Wl,-z,relro,-z,now
+#	LDFLAGS=-Wl,-z,relro,-z,now
+	LDFLAGS=$(TARGET_LDFLAGS)
 	RUSTFLAGS=--release
 endif
 
@@ -316,7 +319,7 @@ ifeq ($(ZT_CONTROLLER),1)
 endif
 
 # ARM32 hell -- use conservative CFLAGS
-ifeq ($(ZT_ARCHITECTURE),3)
+ifeq (0,3)
 	ifeq ($(shell if [ -e /usr/bin/dpkg ]; then dpkg --print-architecture; fi),armel)
 		override CFLAGS+=-march=armv5t -mfloat-abi=soft -msoft-float -mno-unaligned-access -marm
 		override CXXFLAGS+=-march=armv5t -mfloat-abi=soft -msoft-float -mno-unaligned-access -marm
@@ -343,8 +346,8 @@ ifeq ($(ZT_USE_ARM32_NEON_ASM_CRYPTO),1)
 endif
 
 # Position Independence
-override CFLAGS+=-fPIC -fPIE
-override CXXFLAGS+=-fPIC -fPIE
+#override CFLAGS+=-fPIC -fPIE
+#override CXXFLAGS+=-fPIC -fPIE
 
 .PHONY: all
 all:	one
@@ -357,7 +360,7 @@ from_builder:	FORCE
 	ln -sf zerotier-one zerotier-cli
 
 zerotier-one:	$(CORE_OBJS) $(ONE_OBJS) one.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o $(LDLIBS)
+	$(CXX) $(CXXFLAGS) -o zerotier-one $(CORE_OBJS) $(ONE_OBJS) one.o $(LDFLAGS) $(LDLIBS)
 
 zerotier-idtool: zerotier-one
 	ln -sf zerotier-one zerotier-idtool

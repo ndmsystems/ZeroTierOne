@@ -63,6 +63,8 @@ std::shared_ptr<EthernetTap> EthernetTap::newInstance(
 	unsigned int metric,
 	uint64_t nwid,
 	const char *friendlyName,
+	const char *feedback,
+	const char *ndmId,
 	void (*handler)(void *,void *,uint64_t,const MAC &,const MAC &,unsigned int,unsigned int,const void *,unsigned int),
 	void *arg)
 {
@@ -92,7 +94,7 @@ std::shared_ptr<EthernetTap> EthernetTap::newInstance(
 #endif // __APPLE__
 
 #ifdef __LINUX__
-	return std::shared_ptr<EthernetTap>(new LinuxEthernetTap(homePath,mac,mtu,metric,nwid,friendlyName,handler,arg));
+	return std::shared_ptr<EthernetTap>(new LinuxEthernetTap(homePath,mac,mtu,metric,nwid,friendlyName,feedback,ndmId,handler,arg));
 #endif // __LINUX__
 
 #ifdef __WINDOWS__

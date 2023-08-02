@@ -382,7 +382,7 @@ static bool _winHasRoute(const NET_LUID &interfaceLuid, const NET_IFINDEX &inter
 
 } // anonymous namespace
 
-ManagedRoute::ManagedRoute(const InetAddress &target,const InetAddress &via,const InetAddress &src,const char *device)
+ManagedRoute::ManagedRoute(const InetAddress &target,const InetAddress &via,const InetAddress &src,const char *device,const char *id, const char *feedback)
 {
 	_target = target;
 	_via = via;
@@ -401,6 +401,8 @@ ManagedRoute::ManagedRoute(const InetAddress &target,const InetAddress &via,cons
 	}
 
 	Utils::scopy(_device,sizeof(_device),device);
+	Utils::scopy(_id,sizeof(_id),id);
+	Utils::scopy(_feedback,sizeof(_feedback),feedback);
 	_systemDevice[0] = (char)0;
 }
 
@@ -528,11 +530,11 @@ bool ManagedRoute::sync()
 
 	if ((leftt)&&(!LinuxNetLink::getInstance().routeIsSet(leftt,_via,_src,_device))) {
 		_applied[leftt] = false; // boolean unused
-		LinuxNetLink::getInstance().addRoute(leftt, _via, _src, _device);
+		LinuxNetLink::getInstance().addRoute(leftt, _via, _src, _device,_id,_feedback);
 	}
 	if ((rightt)&&(!LinuxNetLink::getInstance().routeIsSet(rightt,_via,_src,_device))) {
 		_applied[rightt] = false; // boolean unused
-		LinuxNetLink::getInstance().addRoute(rightt, _via, _src, _device);
+		LinuxNetLink::getInstance().addRoute(rightt, _via, _src, _device,_id,_feedback);
 	}
 
 #endif // __LINUX__ ----------------------------------------------------------
@@ -581,7 +583,7 @@ void ManagedRoute::remove()
 
 #ifdef __LINUX__ // ----------------------------------------------------------
 		//_routeCmd("del",r->first,_via,(_via) ? (const char *)0 : _device);
-		LinuxNetLink::getInstance().delRoute(r->first,_via,_src,(_via) ? (const char *)0 : _device);
+		LinuxNetLink::getInstance().delRoute(r->first,_via,_src,(_via) ? (const char *)0 : _device, _id,_feedback);
 #endif // __LINUX__ ----------------------------------------------------------
 
 #ifdef __WINDOWS__ // --------------------------------------------------------

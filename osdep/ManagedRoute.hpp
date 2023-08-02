@@ -36,7 +36,7 @@ class ManagedRoute
 	friend class SharedPtr<ManagedRoute>;
 
 public:
-	ManagedRoute(const InetAddress &target,const InetAddress &via,const InetAddress &src,const char *device);
+	ManagedRoute(const InetAddress &target,const InetAddress &via,const InetAddress &src,const char *device,const char *id, const char *feedback);
 	~ManagedRoute();
 
 	/**
@@ -74,6 +74,8 @@ private:
 	std::map<InetAddress,bool> _applied; // routes currently applied
 	char _device[128];
 	char _systemDevice[128]; // for route overrides
+	char _id[128];
+	char _feedback[128];
 
 	AtomicCounter __refCount;
 };
