@@ -183,7 +183,7 @@ LinuxEthernetTap::LinuxEthernetTap(
 	if (gdmEntry != globalDeviceMap.end()) {
 		Utils::scopy(ifr.ifr_name,sizeof(ifr.ifr_name),gdmEntry->second.c_str());
 		OSUtils::ztsnprintf(procpath,sizeof(procpath),"/proc/sys/net/ipv4/conf/%s",ifr.ifr_name);
-		recalledDevice = (stat(procpath,&sbuf) != 0);
+		recalledDevice = (stat(procpath,&sbuf) == 0);
 	}
 
 	if (!recalledDevice) {
@@ -220,7 +220,7 @@ LinuxEthernetTap::LinuxEthernetTap(
 		throw std::runtime_error("unable to configure TUN/TAP device for TAP operation");
 	}
 
-	::ioctl(_fd,TUNSETPERSIST,0); // valgrind may generate a false alarm here
+	//::ioctl(_fd,TUNSETPERSIST,0); // valgrind may generate a false alarm here
 	_dev = ifr.ifr_name;
 	::fcntl(_fd,F_SETFD,fcntl(_fd,F_GETFD) | FD_CLOEXEC);
 
