@@ -481,6 +481,45 @@ bool LinuxEthernetTap::addIps(std::vector<InetAddress> ips)
 	return false;
 }
 
+void LinuxEthernetTap::setDns(const char* domain, const std::vector<InetAddress>& servers)
+{
+	const char *args[] =
+	{
+		_feedback.c_str(),
+		"add-dns",
+		NULL
+	};
+	char buf[ZT_MAX_DNS_SERVERS][64];
+	const char *addr[ZT_MAX_DNS_SERVERS];
+
+	for( size_t i = 0; i < ZT_MAX_DNS_SERVERS; ++i )
+	{
+		addr[i] = "0.0.0.0";
+	}
+
+	for( size_t i = 0; i < servers.size(); ++i )
+	{
+		addr[i] = servers[i].toIpString(buf[i]);
+	}
+
+	if( !ndm_feedback(NDM_FEEDBACK_TIMEOUT_MSEC,
+			args,
+			"%s=%s" NESEP_
+			"%s=%s" NESEP_
+			"%s=%s" NESEP_
+			"%s=%s" NESEP_
+			"%s=%s" NESEP_
+			"%s=%s", 
+			"id", _ndmId.c_str(),
+			"domain", domain,
+			"dns1", addr[0],
+			"dns2", addr[1],
+			"dns3", addr[2],
+			"dns4", addr[3]) ) {
+		fprintf(stderr, "unable to send feedback\n");
+	}
+}
+
 bool LinuxEthernetTap::addIp(const InetAddress &ip)
 {
 	if (!ip)
